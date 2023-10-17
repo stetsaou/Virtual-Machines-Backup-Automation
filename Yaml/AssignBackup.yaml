@@ -1,0 +1,40 @@
+jobs:
+  - job: Assign_Backup_Blueprint   
+    displayName: Assign Backup Blueprint
+    pool: 
+      vmImage: ${{ parameters.vmImage }}
+    steps:
+    - task: AzurePowerShell@5
+      name: getsubId
+      enabled: true
+      displayName: GetSubscriptionID
+      inputs:
+        azureSubscription: ${{ parameters.serviceConnection }}
+        azurePowerShellVersion: 'LatestVersion'
+        pwsh: true
+        ScriptType: 'InlineScript'
+        Inline: |
+          Get-AzSubscription -SubscriptionName ${{ parameters.SubscriptionName }}
+          $subscription = Get-AzSubscription -SubscriptionName ${{ parameters.SubscriptionName }}
+          $SubscriptionID = $subscription.id
+          Write-Host "##vso[task.setvariable variable=SubscriptionId;isOutput=true;]$SubscriptionId"
+    - task: AzurePowerShell@5
+      enabled: true
+      displayName: Assign Blueprint
+      inputs:
+        azureSubscription: ${{ parameters.serviceConnection }}
+        azurePowerShellVersion: 'LatestVersion'
+        pwsh: true
+        ScriptType: 'FilePath'
+        ScriptPath: './Pipelines/BlueprintAssign.ps1'
+        ScriptArguments: "-subscriptionid $(getsubId.SubscriptionId) -businessCriticality ${{ parameters.TagBusinessCriticality }}"
+    - task: AzurePowerShell@5
+      enabled: true
+      displayName: Assign Policy to Subscription
+      inputs:
+        azureSubscription: ${{ parameters.serviceConnection }}
+        azurePowerShellVersion: 'LatestVersion'
+        pwsh: false
+        ScriptType: 'FilePath'
+        ScriptPath: './Pipelines/PolicyAssign.ps1'
+        ScriptArguments: "-subscriptionid $(getsubId.SubscriptionId)"
